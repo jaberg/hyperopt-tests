@@ -30,7 +30,7 @@ def get_whole_space():
         },
         {
             'type': 'svm',
-            'C': hp.lognormal('svm_C', 0, 10),
+            'C': hp.lognormal('svm_C', 0, 2),
             'kernel': hp.choice('svm_kernel', [
                 {'ktype': 'linear'},
                 {'ktype': 'rbf', 'width': hp.lognormal('svm_rbf_width', 0, 1)}
@@ -158,7 +158,7 @@ def get_space(Utype=get_whole_space(),
               Ufit_prior=hp.choice('bool_', [True, False]),
               Ubinarize=hp.choice('binarize_', [.0,
                                     hp.lognormal('threshold_', 0, 1)]),
-              UC=hp.lognormal('svm_C', 0, 10),
+              UC=hp.lognormal('svm_C', 0, 2),
               Uwidth=hp.lognormal('svm_rbf_width', 0, 1),
               USVMktype=helper_svm(),
               Ucriterion=hp.choice('dtree_criterion', ['entropy',
