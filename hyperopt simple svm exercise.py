@@ -1,5 +1,5 @@
 from sklearn import datasets
-from hyperopt import fmin, tpe, hp, STATUS_OK, Trials
+from hyperopt import fmin, tpe, hp, Trials
 import numpy as np
 import hyperopt
 import space
@@ -15,14 +15,13 @@ X_og, y_og = X, y
 
 trials = Trials()
 best = fmin(fn=lambda x: classifier_objective(x, X, y),
-            space=get_space(),
+            space=get_space(Upreprocess='PCA'),
             algo=tpe.suggest,
-            max_evals=50,
+            max_evals=100,
             trials=trials)
 
 print '\n\n'
 print best
-config = hyperopt.space_eval(get_space(), best)
+config = hyperopt.space_eval(get_space(Upreprocess='PCA'), best)
 print classifier_objective(config, X, y)
 # print trials.results
-
