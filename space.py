@@ -60,8 +60,8 @@ def helper_svm():
     ])
 
 
-def helper_preprocess(Upreprocess, Unorm, Unaxis, Uw_mean,
-                      Uw_std, Usaxis, Ufeature_range):
+def helper_preprocess(Upreprocess, Unorm, Unaxis, Uw_mean, Uw_std,
+                      Usaxis, Ufeature_range, Un_components, Uwhiten):
     '''
     Builds a dictionary containing preprocessing algorithm. The algo
     must be specified.
@@ -78,13 +78,15 @@ def helper_preprocess(Upreprocess, Unorm, Unaxis, Uw_mean,
                 'pw_std': Uw_std, 'psaxis': Usaxis}
     elif Upreprocess == 'min_max':
         return {'palgo': Upreprocess, 'pfeature_range': Ufeature_range}
-    elif Upreprocess == 'PCA':  # not complete
-        return {'palgo': Upreprocess}
+    elif Upreprocess == 'PCA':
+        return {'palgo': Upreprocess, 'pn_components': Un_components,
+                'pwhiten': Uwhiten}
 
 
 def get_allowed_pre(Utype, Unorm=choice(['l1', 'l2']), Unaxis=1,
                     Uw_mean=choice([True, False]), Uw_std=True,
-                    Usaxis=0, Ufeature_range=(0, 1)):
+                    Usaxis=0, Ufeature_range=(0, 1), Un_components=None,
+                    Uwhiten=hp.choice('whiten_choice', [True, False])):
     '''
     Returns a hp space of every preprocessing algorithm that can be
     used combined with Utype algorithm. Utype has to be a string (name)
@@ -96,15 +98,16 @@ def get_allowed_pre(Utype, Unorm=choice(['l1', 'l2']), Unaxis=1,
     for pre_process in all_pre:
         if check_algo_preprocess(Utype, pre_process):
             allowed.append(
-                helper_preprocess(pre_process, Unorm, Unaxis, Uw_mean,
-                                  Uw_std, Usaxis, Ufeature_range))
+                helper_preprocess(
+                    pre_process, Unorm, Unaxis, Uw_mean, Uw_std,
+                    Usaxis, Ufeature_range, Un_components, Uwhiten))
 
     allowed.append({'palgo': False})
     return hp.choice('pre_process_algo=' + Utype, allowed)
 
 
-def get_preprocess(Utype, Upreprocess, Unorm, Unaxis, Uw_mean,
-                   Uw_std, Usaxis, Ufeature_range):
+def get_preprocess(Utype, Upreprocess, Unorm, Unaxis, Uw_mean, Uw_std,
+                   Usaxis, Ufeature_range, Un_components, Uwhiten):
     '''
     Utype is specified when we call this function. If Upreprocess is
     also specified, this builds that algo with the params given. If not
@@ -116,18 +119,19 @@ def get_preprocess(Utype, Upreprocess, Unorm, Unaxis, Uw_mean,
     elif Upreprocess is False:
         return {'palgo': False}
     else:  # I know which Upreprocess to use
-        return helper_preprocess(Upreprocess, Unorm, Unaxis, Uw_mean,
-                                 Uw_std, Usaxis, Ufeature_range)
+        return helper_preprocess(
+            Upreprocess, Unorm, Unaxis, Uw_mean, Uw_std, Usaxis,
+            Ufeature_range, Un_components, Uwhiten)
 
 
 # All the get_algorithm return space as dict. They respect the params
 # given the user.
-def get_bayes(UNBktype, Ualpha, Ufit_prior, Ubinarize,
-              Upreprocess, Unorm, Unaxis, Uw_mean,
-              Uw_std, Usaxis, Ufeature_range):
+def get_bayes(UNBktype, Ualpha, Ufit_prior, Ubinarize, Upreprocess,
+              Unorm, Unaxis, Uw_mean, Uw_std, Usaxis, Ufeature_range,
+              Un_components, Uwhiten):
     preprocess_dict = get_preprocess(
         'naive_bayes', Upreprocess, Unorm, Unaxis, Uw_mean, Uw_std,
-        Usaxis, Ufeature_range)
+        Usaxis, Ufeature_range, Un_components, Uwhiten)
     if UNBktype == 'gaussian':
         return {'subtype': {'ktype': 'gaussian'},
                 'type': 'naive_bayes',
@@ -151,10 +155,10 @@ def get_bayes(UNBktype, Ualpha, Ufit_prior, Ubinarize,
 
 
 def get_svm(UC, USVMktype, Uwidth, Upreprocess, Unorm, Unaxis, Uw_mean,
-            Uw_std, Usaxis, Ufeature_range):
+            Uw_std, Usaxis, Ufeature_range, Un_components, Uwhiten):
     preprocess_dict = get_preprocess(
-        'svm', Upreprocess, Unorm, Unaxis, Uw_mean, Uw_std,
-        Usaxis, Ufeature_range)
+        'svm', Upreprocess, Unorm, Unaxis, Uw_mean, Uw_std, Usaxis,
+        Ufeature_range, Un_components, Uwhiten)
     if USVMktype == 'linear':
         return {'kernel': {'ktype': 'linear'}, 'C': UC, 'type': 'svm',
                 'preprocess': preprocess_dict}
@@ -169,10 +173,11 @@ def get_svm(UC, USVMktype, Uwidth, Upreprocess, Unorm, Unaxis, Uw_mean,
 
 
 def get_dtree(Ucriterion, Umax_depth, Umin_samples_split, Upreprocess,
-              Unorm, Unaxis, Uw_mean, Uw_std, Usaxis, Ufeature_range):
+              Unorm, Unaxis, Uw_mean, Uw_std, Usaxis, Ufeature_range,
+              Un_components, Uwhiten):
     preprocess_dict = get_preprocess(
         'dtree', Upreprocess, Unorm, Unaxis, Uw_mean, Uw_std,
-        Usaxis, Ufeature_range)
+        Usaxis, Ufeature_range, Un_components, Uwhiten)
     return {'min_samples_split': Umin_samples_split,
             'max_depth': Umax_depth, 'criterion': Ucriterion,
             'type': 'dtree', 'preprocess': preprocess_dict}
@@ -181,17 +186,17 @@ def get_dtree(Ucriterion, Umax_depth, Umin_samples_split, Upreprocess,
 def get_neighbors(UNktype, Uweights, Ualgo, Uleaf_sz,
                   Up, Un_neighbors, Uradius, Uout_label, Upreprocess,
                   Unorm, Unaxis, Uw_mean, Uw_std, Usaxis,
-                  Ufeature_range):
+                  Ufeature_range, Un_components, Uwhiten):
     preprocess_dict = get_preprocess(
         'neighbors', Upreprocess, Unorm, Unaxis, Uw_mean, Uw_std,
-        Usaxis, Ufeature_range)
+        Usaxis, Ufeature_range, Un_components, Uwhiten)
     if UNktype == 'kneighbors':
         return {'subtype': {'n_neighbors': Un_neighbors,
                             'ktype': UNktype},
                 'weights': Uweights, 'algo': Ualgo, 'p': Up,
                 'leaf_sz': Uleaf_sz, 'type': 'neighbors',
                 'preprocess': preprocess_dict}
-    elif UNktype == 'radiusneigbors':  # not tested (should work)
+    elif UNktype == 'radiusneigbors':
         return {'subtype': {'radius': Uradius,
                             'ktype': UNktype,
                             'outlier_label': Uout_label},
@@ -232,21 +237,24 @@ def get_space(Utype=True,
               Upreprocess=True,
               Unorm=choice(['l1', 'l2']),
               Unaxis=1, Uw_mean=choice([True, False]), Uw_std=True,
-              Usaxis=0, Ufeature_range=(0, 1)):
+              Usaxis=0, Ufeature_range=(0, 1), Un_components=None,
+              Uwhiten=hp.choice('whiten_chose', [True, False])):
 
     give_me_bayes = get_bayes(
         UNBktype, Ualpha, Ufit_prior, Ubinarize, Upreprocess, Unorm,
-        Unaxis, Uw_mean, Uw_std, Usaxis, Ufeature_range)
+        Unaxis, Uw_mean, Uw_std, Usaxis, Ufeature_range, Un_components,
+        Uwhiten)
     give_me_svm = get_svm(
         UC, USVMktype, Uwidth, Upreprocess, Unorm, Unaxis, Uw_mean,
-        Uw_std, Usaxis, Ufeature_range)
+        Uw_std, Usaxis, Ufeature_range, Un_components, Uwhiten)
     give_me_dtree = get_dtree(
         Ucriterion, Umax_depth, Umin_samples_split, Upreprocess, Unorm,
-        Unaxis, Uw_mean, Uw_std, Usaxis, Ufeature_range)
+        Unaxis, Uw_mean, Uw_std, Usaxis, Ufeature_range, Un_components,
+        Uwhiten)
     give_me_neighbors = get_neighbors(
         UNktype, Uweights, Ualgo, Uleaf_sz, Up, Un_neighbors, Uradius,
         Uout_label, Upreprocess, Unorm, Unaxis, Uw_mean, Uw_std,
-        Usaxis, Ufeature_range)
+        Usaxis, Ufeature_range, Un_components, Uwhiten)
 
     if Utype == 'naive_bayes':
         res_space = give_me_bayes

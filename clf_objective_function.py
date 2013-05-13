@@ -6,25 +6,26 @@ from random import choice
 
 # Make validation_error 1 - val_err instead of -val_err. Not doing it
 # now, since it's easier to debug when it's like this.
+
+# Do I do preprocessing on the test data?
 def val_test_error(clf, k_fold, folds, X, y):
     '''
     This will work only if all the algorithms used have fit and score.
-    Will fix when some algorithm doesn't have those.
+    Will fix when some algorithm doesn't have those. Calculates val_err
+    when I don't have external val input using kfold.
     '''
     validation_error, test_error = 0, 0
     for train, test in k_fold:
         try:
             clf.fit(X[train], y[train])
-            # test_error += clf.score(X[test], y[test])
             validation_error += clf.score(X[test], y[test])
         except ValueError:
         #except:  # catches all the errors
-            return 0, 0, STATUS_FAIL
+            return 0, STATUS_FAIL
 
     validation_error /= folds
     validation_error = - validation_error
-    test_error = validation_error
-    return validation_error, test_error, STATUS_OK
+    return validation_error, STATUS_OK
 
 
 # preprocessing changes only X
@@ -47,16 +48,18 @@ def preprocess_data(X, Upreprocess, tmp):
     elif Upreprocess is False:
         return X
     elif Upreprocess == 'PCA':
-        return dp.PCA().fit_transform(X)
+        return dp.PCA(n_components=tmp['pn_components'],
+                      whiten=tmp['pwhiten']).fit_transform(X)
     else:
         raise NotImplementedError('Requested preprocessing not implemented')
         
 
-# Should change so it can include validation and test input.
-def classifier_objective(config, XX, yy):
+def classifier_objective(config, XX, yy, val_XX=False, val_yy=False,
+                         test_XX=False, test_yy=False):
     print config  # useful for debugging
     X, y = XX.copy(), yy.copy()
-    folds, begin_time = 10, time.time()
+    
+    folds, begin_time = 3, time.time()
     from sklearn import cross_validation as cv
     k_fold = cv.StratifiedKFold(y, n_folds=folds)
 
@@ -110,16 +113,28 @@ def classifier_objective(config, XX, yy):
                 radius=tmp['radius'], weights=config['weights'],
                 algorithm=config['algo'], leaf_size=config['leaf_sz'],
                 p=config['p'], outlier_label=tmp['out_label'])
-            
-    validation_error, test_error, status = val_test_error(
-        clf, k_fold, folds, X, y)
+
+    if val_XX is not False:
+        val_X, val_y = val_XX.copy(), val_y.copy()  # just in case
+        validation_error = -clf.fit(X, y).score(val_X, val_y)
+    else:
+        validation_error, status = val_test_error(clf, k_fold,
+                                                  folds, X, y)
+
+    if status == STATUS_OK and test_XX is not False:
+        test_X, test_y = test_XX.copy(), test_yy.copy()  # just in case
+        test_error = -clf.fit(X, y).score(test_X, test_y)
+    else:
+        test_error = validation_error
         
     return {
         'loss': validation_error,
         'status': status,
         'train_time': time.time() - begin_time,
         'true_loss': test_error,
-        # will be correct when I change validation_error, or test_error
-        'precision': 1 - validation_error,
+        # will be correct when I change validation and test _error
+        'precision_of_validation': 1 - validation_error,
+        'precision_of_test': 1 - test_error,
         'algorithm': config['type'],
+        'preprocessing': config['preprocess']['palgo']
     }
