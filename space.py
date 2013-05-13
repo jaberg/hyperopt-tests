@@ -126,12 +126,9 @@ def get_preprocess(Utype, Upreprocess, Unorm, Unaxis, Uw_mean, Uw_std,
 
 # All the get_algorithm return space as dict. They respect the params
 # given the user.
-def get_bayes(UNBktype, Ualpha, Ufit_prior, Ubinarize, Upreprocess,
-              Unorm, Unaxis, Uw_mean, Uw_std, Usaxis, Ufeature_range,
-              Un_components, Uwhiten):
-    preprocess_dict = get_preprocess(
-        'naive_bayes', Upreprocess, Unorm, Unaxis, Uw_mean, Uw_std,
-        Usaxis, Ufeature_range, Un_components, Uwhiten)
+def get_bayes(UNBktype, Ualpha, Ufit_prior, Ubinarize, get_preprocessor):
+    preprocess_dict = get_preprocessor('naive_bayes')
+
     if UNBktype == 'gaussian':
         return {'subtype': {'ktype': 'gaussian'},
                 'type': 'naive_bayes',
@@ -154,11 +151,8 @@ def get_bayes(UNBktype, Ualpha, Ufit_prior, Ubinarize, Upreprocess,
                 'preprocess': preprocess_dict}
 
 
-def get_svm(UC, USVMktype, Uwidth, Upreprocess, Unorm, Unaxis, Uw_mean,
-            Uw_std, Usaxis, Ufeature_range, Un_components, Uwhiten):
-    preprocess_dict = get_preprocess(
-        'svm', Upreprocess, Unorm, Unaxis, Uw_mean, Uw_std, Usaxis,
-        Ufeature_range, Un_components, Uwhiten)
+def get_svm(UC, USVMktype, Uwidth, get_preprocessor):
+    preprocess_dict = get_preprocessor('svm')
     if USVMktype == 'linear':
         return {'kernel': {'ktype': 'linear'}, 'C': UC, 'type': 'svm',
                 'preprocess': preprocess_dict}
@@ -240,15 +234,17 @@ def get_space(Utype=True,
               Usaxis=0, Ufeature_range=(0, 1), Un_components=None,
               Uwhiten=hp.choice('whiten_chose', [True, False])):
 
-    give_me_bayes = get_bayes(
-        UNBktype, Ualpha, Ufit_prior, Ubinarize, Upreprocess, Unorm,
-        Unaxis, Uw_mean, Uw_std, Usaxis, Ufeature_range, Un_components,
-        Uwhiten)
-    give_me_svm = get_svm(
-        UC, USVMktype, Uwidth, Upreprocess, Unorm, Unaxis, Uw_mean,
-        Uw_std, Usaxis, Ufeature_range, Un_components, Uwhiten)
+    def get_preprocessor(name):
+         return get_preprocess(name, Upreprocess, Unorm, Unaxis, Uw_mean, Uw_std,
+                        Usaxis, Ufeature_range, Un_components, Uwhiten)
+
+    give_me_bayes = get_bayes(UNBktype, Ualpha, Ufit_prior, Ubinarize,
+                              get_preprocessor)
+    give_me_svm = get_svm(UC, USVMktype, Uwidth, get_preprocessor)
+
+    #TODO: use get_processor
     give_me_dtree = get_dtree(
-        Ucriterion, Umax_depth, Umin_samples_split, Upreprocess, Unorm,
+        Ucriterion, Umax_depth, Umin_samples_split, 
         Unaxis, Uw_mean, Uw_std, Usaxis, Ufeature_range, Un_components,
         Uwhiten)
     give_me_neighbors = get_neighbors(
